@@ -1,4 +1,5 @@
 import Data.Function
+import Distribution.Simple.Utils (xargs)
 
 -- Task 1
 goldbachPairs :: Int -> [(Int, Int)]
@@ -12,6 +13,7 @@ coprimePairs (x : xs) = [(x, y) | y <- xs, x < y, gcd x y == 1] ++ coprimePairs 
 
 -- Task 3
 
+-- works for negatives, zero, one, two, ...
 sieve :: [Int] -> [Int]
 sieve [] = []
 sieve (x : xs) = x : sieve [y | y <- xs, y `mod` x /= 0]
@@ -32,13 +34,40 @@ matMul a b = [[sum [a !! i !! k * b !! k !! j | k <- [0 .. p - 1]] | j <- [0 .. 
     n = length (head b)
 
 -- Task 5
-permutations :: Int -> [a] -> [[a]]
-permutations 0 _ = [[]]
-permutations _ [] = []
-permutations k (x : xs) = [x : t | t <- (k - 1) `permutations` xs] ++ k `permutations` xs
+-- not done
+combinations :: Int -> [a] -> [[a]]
+combinations 0 _ = [[]]
+combinations _ [] = []
+combinations k (x : xs) = [x : t | t <- (k - 1) `combinations` xs] ++ k `combinations` xs
 
 -- Task 6
 -- Task 7
+
+power :: Int -> Int -> Int
+power x n = go x n 1
+  where
+    go x 0 acc = acc
+    go x n !acc = go x (n - 1) x * acc
+
 -- Task 8
+
+listMax :: [Int] -> Int
+listMax (x : xs) = go xs x
+  where
+    go [] acc = acc
+    go (x : xs) acc =
+      let acc' = max x acc
+       in go xs acc'
+
+listMax' :: [Int] -> Int
+listMax' (x : xs) = go xs x
+  where
+    go [] acc = acc
+    go (x : xs) !acc = go xs (max x acc)
+
 -- Task 9
+
+primes :: [Int]
+primes = undefined
+
 -- Task 10
