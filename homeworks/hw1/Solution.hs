@@ -42,6 +42,7 @@ combinations k (x : xs) = [x : t | t <- (k - 1) `combinations` xs] ++ k `combina
 
 -- Task 6
 
+-- (a)
 merge :: (Ord a) => [a] -> [a] -> [a]
 merge xs [] = xs
 merge [] ys = ys
@@ -50,6 +51,7 @@ merge (x : xs) (y : ys)
   | x > y = y : merge (x : xs) ys
   | otherwise = x : merge xs ys
 
+-- (b)
 hamming :: [Integer]
 hamming = 1 : merge (merge (map (* 2) hamming) (map (* 3) hamming)) (map (* 5) hamming)
 
@@ -79,10 +81,38 @@ listMax' (x : xs) = go xs x
 
 -- Task 9
 
+-- (a)
 primes :: [Int]
 primes = sieve [2 ..]
 
+-- (b)
 isPrime' :: Int -> Bool
 isPrime' n = n `elem` primes
 
 -- Task 10
+
+-- (a)
+mean :: [Double] -> Double
+mean [] = 0
+mean xs = go xs (0, 0)
+  where
+    go [] (acc, counter) = acc / counter
+    go (x : xs) (acc, counter) = go xs (acc + x, counter + 1)
+
+-- (b)
+
+mean' :: [Double] -> Double
+mean' [] = 0
+mean' xs = go xs (0, 0)
+  where
+    go [] (acc, counter) = acc / counter
+    go (x : xs) (!acc, !counter) = go xs (acc + x, counter + 1)
+
+-- (c)
+
+meanAndVar :: [Double] -> (Double, Double)
+meanAndVar [] = (0, 0)
+meanAndVar xs = go xs (0, 0, 0)
+  where
+    go [] (acc, counter, sum_of_squ) = (acc / counter, sum_of_squ / counter - acc * acc / counter / counter)
+    go (x : xs) (!acc, !counter, !sum_of_squ) = go xs (acc + x, counter + 1, sum_of_squ + x * x)
