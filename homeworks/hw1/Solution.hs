@@ -41,6 +41,18 @@ combinations _ [] = []
 combinations k (x : xs) = [x : t | t <- (k - 1) `combinations` xs] ++ k `combinations` xs
 
 -- Task 6
+
+merge :: (Ord a) => [a] -> [a] -> [a]
+merge xs [] = xs
+merge [] ys = ys
+merge (x : xs) (y : ys)
+  | y > x = x : merge xs (y : ys)
+  | x > y = y : merge (x : xs) ys
+  | otherwise = x : merge xs ys
+
+hamming :: [Integer]
+hamming = 1 : merge (merge (map (* 2) hamming) (map (* 3) hamming)) (map (* 5) hamming)
+
 -- Task 7
 
 power :: Int -> Int -> Int
@@ -68,6 +80,9 @@ listMax' (x : xs) = go xs x
 -- Task 9
 
 primes :: [Int]
-primes = undefined
+primes = sieve [2 ..]
+
+isPrime' :: Int -> Bool
+isPrime' n = n `elem` primes
 
 -- Task 10
