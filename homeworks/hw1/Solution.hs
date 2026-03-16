@@ -1,4 +1,5 @@
 import Data.Function
+import Data.List (delete)
 import Distribution.Simple.Utils (xargs)
 
 -- Task 1
@@ -34,11 +35,14 @@ matMul a b = [[sum [a !! i !! k * b !! k !! j | k <- [0 .. p - 1]] | j <- [0 .. 
     n = length (head b)
 
 -- Task 5
--- not done
-combinations :: Int -> [a] -> [[a]]
-combinations 0 _ = [[]]
-combinations _ [] = []
-combinations k (x : xs) = [x : t | t <- (k - 1) `combinations` xs] ++ k `combinations` xs
+
+chooseOneFromList :: (Eq a) => [a] -> [(a, [a])]
+chooseOneFromList xs = [(x, delete x xs) | x <- xs]
+
+permutations :: (Eq a) => Int -> [a] -> [[a]]
+permutations 0 _ = [[]]
+permutations _ [] = []
+permutations k xs = [x : t | (x, rest) <- chooseOneFromList xs, t <- permutations (k - 1) rest]
 
 -- Task 6
 
@@ -107,6 +111,9 @@ mean' xs = go xs (0, 0)
   where
     go [] (acc, counter) = acc / counter
     go (x : xs) (!acc, !counter) = go xs (acc + x, counter + 1)
+
+-- Bang in front of tuple is not enough, it only forces the structure
+-- because this is the WHNF, it does not evaluates components
 
 -- (c)
 
