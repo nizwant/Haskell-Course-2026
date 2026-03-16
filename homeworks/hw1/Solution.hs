@@ -4,7 +4,7 @@ import Distribution.Simple.Utils (xargs)
 
 -- Task 1
 goldbachPairs :: Int -> [(Int, Int)]
-goldbachPairs n = [(p, q) | q <- [1 .. n], p <- [1 .. q - 1], p + q == n, isPrime p, isPrime q]
+goldbachPairs n = [(p, q) | q <- [1 .. n], p <- [1 .. q], p + q == n, isPrime p, isPrime q]
 
 -- Task 2
 
@@ -31,7 +31,7 @@ matMul :: [[Int]] -> [[Int]] -> [[Int]]
 matMul a b = [[sum [a !! i !! k * b !! k !! j | k <- [0 .. p - 1]] | j <- [0 .. (n - 1)]] | i <- [0 .. (m - 1)]]
   where
     m = length a
-    p = length b
+    p = length (head a)
     n = length (head b)
 
 -- Task 5
@@ -65,7 +65,7 @@ power :: Int -> Int -> Int
 power x n = go x n 1
   where
     go x 0 acc = acc
-    go x n !acc = go x (n - 1) x * acc
+    go x n !acc = go x (n - 1) (x * acc)
 
 -- Task 8
 
@@ -75,7 +75,7 @@ listMax (x : xs) = go xs x
     go [] acc = acc
     go (x : xs) acc =
       let acc' = max x acc
-       in go xs acc'
+       in acc' `seq` go xs acc'
 
 listMax' :: [Int] -> Int
 listMax' (x : xs) = go xs x
