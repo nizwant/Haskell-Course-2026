@@ -44,7 +44,14 @@ tailElem x seq = go [seq]
 
 -- Task 5
 tailToList :: Sequence a -> [a]
-tailToList = undefined
+tailToList seq = go [seq] []
+  where
+    go [] acc = reverse acc
+    go (s : ss) acc =
+      case s of
+        Empty -> go ss acc
+        Single x -> go ss (x : acc)
+        Append l r -> go (l : r : ss) acc
 
 -- Task 6
 
@@ -56,9 +63,9 @@ myReverse xs = foldl (flip (++)) [] [xs]
 
 -- (b)
 myTakeWhile :: (a -> Bool) -> [a] -> [a]
-myTakeWhile p = foldr f []
+myTakeWhile p = foldr fun []
   where
-    f x acc
+    fun x acc
       | p x = x : acc
       | otherwise = []
 
