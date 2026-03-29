@@ -23,7 +23,6 @@ seqLength :: Sequence a -> Int
 seqLength = foldl (\c _ -> c + 1) 0
 
 -- Task 3
-
 instance Semigroup (Sequence a) where
   (<>) :: Sequence a -> Sequence a -> Sequence a
   seq1 <> seq2 = Append seq1 seq2
@@ -33,14 +32,23 @@ instance Monoid (Sequence a) where
   mempty = Empty
 
 -- Task 4
+tailElem :: (Eq a) => a -> Sequence a -> Bool
+tailElem x seq = go [seq]
+  where
+    go [] = False
+    go (s : ss) =
+      case s of
+        Empty -> go ss
+        Single y -> (x == y) || go ss
+        Append l r -> go (l : r : ss)
 
 -- Task 5
-
--- tailToList :: Sequence a -> [a]
+tailToList :: Sequence a -> [a]
+tailToList = undefined
 
 -- Task 6
--- Task 7
 
+-- Task 7
 -- (a)
 myReverse :: [a] -> [a]
 myReverse [] = []
@@ -59,7 +67,6 @@ decimal :: [Int] -> Int
 decimal = foldl (\acc d -> acc * 10 + d) 0
 
 -- Task 8
-
 -- (a)
 helper :: (Eq a) => a -> [(a, Int)] -> [(a, Int)]
 helper x [] = [(x, 1)]
