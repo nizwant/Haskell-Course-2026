@@ -1,5 +1,3 @@
-import GHC.Real (underflowError)
-
 data Sequence a = Empty | Single a | Append (Sequence a) (Sequence a)
 
 -- Task 1
@@ -58,8 +56,7 @@ tailToList seq = go [seq] []
 -- Task 7
 -- (a)
 myReverse :: [a] -> [a]
-myReverse [] = []
-myReverse xs = foldl (flip (++)) [] [xs]
+myReverse = foldl (flip (:)) []
 
 -- (b)
 myTakeWhile :: (a -> Bool) -> [a] -> [a]
