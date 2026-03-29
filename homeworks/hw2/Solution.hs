@@ -44,11 +44,16 @@ instance Monoid (Sequence a) where
 -- (a)
 myReverse :: [a] -> [a]
 myReverse [] = []
-
--- myReverse xs = foldl (\acc x -> acc : x) [] xs
+myReverse xs = foldl (flip (++)) [] [xs]
 
 -- (b)
--- myTakeWhile :: (a -> Bool) -> [a] -> [a]
+myTakeWhile :: (a -> Bool) -> [a] -> [a]
+myTakeWhile p = foldr f []
+  where
+    f x acc
+      | p x = x : acc
+      | otherwise = []
+
 -- (c)
 decimal :: [Int] -> Int
 decimal = foldl (\acc d -> acc * 10 + d) 0
@@ -56,7 +61,6 @@ decimal = foldl (\acc d -> acc * 10 + d) 0
 -- Task 8
 
 -- (a)
-
 helper :: (Eq a) => a -> [(a, Int)] -> [(a, Int)]
 helper x [] = [(x, 1)]
 helper x ((letter, number) : xs)
