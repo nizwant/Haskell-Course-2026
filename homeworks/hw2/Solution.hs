@@ -33,10 +33,42 @@ instance Monoid (Sequence a) where
   mempty = Empty
 
 -- Task 4
+
 -- Task 5
+
+-- tailToList :: Sequence a -> [a]
+
 -- Task 6
 -- Task 7
+
+-- (a)
+myReverse :: [a] -> [a]
+myReverse [] = []
+
+-- myReverse xs = foldl (\acc x -> acc : x) [] xs
+
+-- (b)
+-- myTakeWhile :: (a -> Bool) -> [a] -> [a]
+-- (c)
+decimal :: [Int] -> Int
+decimal = foldl (\acc d -> acc * 10 + d) 0
+
 -- Task 8
+
+-- (a)
+
+helper :: (Eq a) => a -> [(a, Int)] -> [(a, Int)]
+helper x [] = [(x, 1)]
+helper x ((letter, number) : xs)
+  | x == letter = (letter, number + 1) : xs
+  | otherwise = (x, 1) : (letter, number) : xs
+
+encode :: (Eq a) => [a] -> [(a, Int)]
+encode = foldr helper []
+
+-- (b)
+decode :: [(a, Int)] -> [a]
+decode = foldr (\(letter, number) acc -> replicate number letter ++ acc) []
 
 main :: IO ()
 main = putStrLn "Hello"
