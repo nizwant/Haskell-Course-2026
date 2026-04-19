@@ -112,11 +112,14 @@ instance Applicative Result where
   pure x = Success x []
   (Failure x) <*> _ = Failure x
   _ <*> (Failure x) = Failure x
-  (Success f warnings_a) <*> (Success b warnings_b) = Success (f b) (warnings_a <> warnings_b)
+  (Success f warnings_a) <*> (Success b warnings_b) = Success (f b) (warnings_a ++ warnings_b)
 
 instance Monad Result where
   Failure x >>= _ = Failure x
-  Success a warnings >>= f = f a
+  Success a warnings >>= f =
+    case f a of
+      Failure x -> Failure x
+      Success b warnings_b -> Success b (warnings ++ warnings_b)
 
 -- (b)
 warn :: String -> Result ()
@@ -133,7 +136,6 @@ validateAge n
       return n
   | n < 0 = do
       failure "Age is negative"
-      return n
   | otherwise = do
       return n
 
