@@ -1,4 +1,5 @@
 import Control.Monad (guard)
+import Control.Monad.Trans.Writer
 import Data.List (delete, permutations)
 import Data.Map hiding (valid)
 import Data.Map qualified as Map hiding (valid)
@@ -143,6 +144,58 @@ validateAges :: [Int] -> Result [Int]
 validateAges age_list = mapM validateAge age_list
 
 -- Task 5
+data Expr = Lit Int | Add Expr Expr | Mul Expr Expr | Neg Expr
+
+simplify :: Expr -> Writer [String] Expr
+simplify expr =
+  case expr of
+    Lit n ->
+      return (Lit n)
+    Neg e -> do
+      e' <- simplify e
+      case e' of
+        Neg inner -> do
+          tell ["Double negation: --e -> e"]
+          return inner
+        _ ->
+          return (Neg e')
+    Add e1 e2 -> do
+      e1' <- simplify e1
+      e2' <- simplify e2
+      case (e1', e2') of
+        (Lit 0, e) -> do
+          tell ["Add identity: 0 + e -> e"]
+          return e
+        (e, Lit 0) -> do
+          tell ["Add identity: e + 0 -> e"]
+          return e
+        (Lit a, Lit b) -> do
+          tell ["Constant folding: a + b"]
+          return (Lit (a + b))
+        _ ->
+          return (Add e1' e2')
+    Mul e1 e2 -> do
+      e1' <- simplify e1
+      e2' <- simplify e2
+      case (e1', e2') of
+        (Lit 0, _) -> do
+          tell ["Zero absorption: 0 * e -> 0"]
+          return (Lit 0)
+        (_, Lit 0) -> do
+          tell ["Zero absorption: e * 0 -> 0"]
+          return (Lit 0)
+        (Lit 1, e) -> do
+          tell ["Mul identity: 1 * e -> e"]
+          return e
+        (e, Lit 1) -> do
+          tell ["Mul identity: e * 1 -> e"]
+          return e
+        (Lit a, Lit b) -> do
+          tell ["Constant folding: a * b"]
+          return (Lit (a * b))
+        _ ->
+          return (Mul e1' e2')
+
 -- Task 6
 
 main = do
@@ -180,3 +233,4 @@ main = do
 
   putStrLn "validate ages"
   print $ validateAges [1, 2, 3, 4, 150, 160, 170, 3, 151]
+  print $ validateAges [1, 2, 3, 4, 150, 160, -1, 170, 3, 151]
