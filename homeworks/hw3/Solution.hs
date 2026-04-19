@@ -1,10 +1,8 @@
 import Control.Monad (guard)
-import Control.Monad.Trans.Writer
+import Control.Monad.Writer
 import Data.List (delete, permutations)
 import Data.Map hiding (map, valid)
 import Data.Map qualified as Map hiding (map, valid)
-import Distribution.Fields.LexerMonad (LexState (warnings))
-import Distribution.Simple.Utils (xargs)
 
 -- Task 1
 type Pos = (Int, Int)
@@ -95,7 +93,6 @@ valid xs conflicts =
     ok (a, b) = (a, b) `notElem` conflicts && (b, a) `notElem` conflicts
 
 seatings :: [Guest] -> [Conflict] -> [[Guest]]
-seatings [] _ = [[]]
 seatings guests conflict = do
   perm <- permutations guests
   guard (valid perm conflict)
@@ -135,8 +132,7 @@ validateAge n
   | n > 150 = do
       warn "Age is above 150"
       return n
-  | n < 0 = do
-      failure "Age is negative"
+  | n < 0 = failure "Age is negative"
   | otherwise = do
       return n
 
@@ -144,7 +140,7 @@ validateAges :: [Int] -> Result [Int]
 validateAges age_list = mapM validateAge age_list
 
 -- Task 5
-data Expr = Lit Int | Add Expr Expr | Mul Expr Expr | Neg Expr
+data Expr = Lit Int | Add Expr Expr | Mul Expr Expr | Neg Expr deriving (Show)
 
 simplify :: Expr -> Writer [String] Expr
 simplify expr =
