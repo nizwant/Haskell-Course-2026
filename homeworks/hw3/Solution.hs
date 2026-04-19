@@ -1,23 +1,27 @@
 import Data.Map
 import Data.Map qualified as Map
 
+-- Task 1
 type Pos = (Int, Int)
 
 data Dir = N | S | E | W deriving (Eq, Ord, Show)
 
 type Maze = Map Pos (Map Dir Pos)
 
+-- (a)
 move :: Maze -> Pos -> Dir -> Maybe Pos
 move maze pos d = do
   dir_mapping <- Map.lookup pos maze
   Map.lookup d dir_mapping
 
+-- (b)
 followPath :: Maze -> Pos -> [Dir] -> Maybe Pos
 followPath maze pos [] = Just pos
 followPath maze pos (d : ds) = do
   new_pos <- move maze pos d
   followPath maze new_pos ds
 
+-- (c)
 safePath :: Maze -> Pos -> [Dir] -> Maybe [Pos]
 safePath maze pos [] = Just [pos]
 safePath maze pos (d : ds) = do
@@ -57,6 +61,28 @@ maze =
       ((3, 3), Map.fromList [(W, (2, 3)), (N, (3, 2))])
     ]
 
+-- Task 2
+type Key = Map Char Char
+
+decrypt :: Key -> String -> Maybe String
+decrypt key word = traverse (`Map.lookup` key) word
+
+decryptWords :: Key -> [String] -> Maybe [String]
+decryptWords key word_list = traverse (key `decrypt`) word_list
+
+key :: Key
+key =
+  Map.fromList
+    [ ('a', 'x'),
+      ('b', 'y'),
+      ('c', 'z')
+    ]
+
+-- Task 3
+-- Task 4
+-- Task 5
+-- Task 6
+
 main = do
   putStrLn "=== Homework 03 ==="
 
@@ -74,3 +100,13 @@ main = do
   print $ safePath maze (0, 0) [S, E]
   print $ safePath maze (0, 0) [S, E, E]
   print $ safePath maze (0, 0) [S, S, E, N, E, N, W, W]
+
+  putStrLn "decrypt"
+  print $ decrypt key "abc"
+  print $ decrypt key "aaabc"
+  print $ decrypt key "aaadbc"
+
+  putStrLn "decrypt words"
+  print $ decryptWords key ["abc", "aab", "ccc"]
+  print $ decryptWords key ["abc", "aab", "cccd"]
+  print $ decryptWords key ["abc", "aab", "ccc", "d"]
