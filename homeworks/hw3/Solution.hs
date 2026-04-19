@@ -1,8 +1,8 @@
 import Control.Monad (guard)
 import Control.Monad.Trans.Writer
 import Data.List (delete, permutations)
-import Data.Map hiding (valid)
-import Data.Map qualified as Map hiding (valid)
+import Data.Map hiding (map, valid)
+import Data.Map qualified as Map hiding (map, valid)
 import Distribution.Fields.LexerMonad (LexState (warnings))
 import Distribution.Simple.Utils (xargs)
 
@@ -197,6 +197,14 @@ simplify expr =
           return (Mul e1' e2')
 
 -- Task 6
+newtype ZipList a = ZipList {getZipList :: [a]} deriving (Show)
+
+instance Functor ZipList where
+  fmap func (ZipList xs) = ZipList (map func xs)
+
+instance Applicative ZipList where
+  pure a = ZipList (repeat a)
+  ZipList fs <*> ZipList xs = ZipList (zipWith ($) fs xs)
 
 main = do
   putStrLn "=== Homework 03 ==="
@@ -234,3 +242,7 @@ main = do
   putStrLn "validate ages"
   print $ validateAges [1, 2, 3, 4, 150, 160, 170, 3, 151]
   print $ validateAges [1, 2, 3, 4, 150, 160, -1, 170, 3, 151]
+
+  putStrLn "zipList"
+  print $ pure id <*> ZipList [1, 2, 3]
+  print $ pure (+) <*> ZipList [1, 2, 3] <*> ZipList [10, 20, 30]
