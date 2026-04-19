@@ -1,5 +1,7 @@
-import Data.Map
-import Data.Map qualified as Map
+import Control.Monad (guard)
+import Data.List (delete, permutations)
+import Data.Map hiding (valid)
+import Data.Map qualified as Map hiding (valid)
 
 -- Task 1
 type Pos = (Int, Int)
@@ -68,7 +70,7 @@ decrypt :: Key -> String -> Maybe String
 decrypt key word = traverse (`Map.lookup` key) word
 
 decryptWords :: Key -> [String] -> Maybe [String]
-decryptWords key word_list = traverse (key `decrypt`) word_list
+decryptWords key word_list = traverse (decrypt key) word_list
 
 key :: Key
 key =
@@ -79,7 +81,27 @@ key =
     ]
 
 -- Task 3
+type Guest = String
+
+type Conflict = (Guest, Guest)
+
+valid :: [Guest] -> [Conflict] -> Bool
+valid xs conflicts =
+  all ok (zip xs (tail xs ++ [head xs]))
+  where
+    ok (a, b) =
+      (a, b) `notElem` conflicts
+        && (b, a) `notElem` conflicts
+
+seatings :: [Guest] -> [Conflict] -> [[Guest]]
+seatings [] _ = [[]]
+seatings guests conflict = do
+  perm <- permutations guests
+  guard (valid perm conflict)
+  return perm
+
 -- Task 4
+
 -- Task 5
 -- Task 6
 
@@ -110,3 +132,8 @@ main = do
   print $ decryptWords key ["abc", "aab", "ccc"]
   print $ decryptWords key ["abc", "aab", "cccd"]
   print $ decryptWords key ["abc", "aab", "ccc", "d"]
+
+  putStrLn "seatings"
+  print $ seatings ["a", "b", "c"] [("a", "b")]
+  print $ seatings ["a", "b", "c", "d"] [("a", "b")]
+  print $ seatings ["a", "b", "c", "d"] [("a", "b"), ("d", "c")]
