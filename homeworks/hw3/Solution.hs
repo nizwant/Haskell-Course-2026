@@ -2,6 +2,8 @@ import Control.Monad (guard)
 import Data.List (delete, permutations)
 import Data.Map hiding (valid)
 import Data.Map qualified as Map hiding (valid)
+import Distribution.Fields.LexerMonad (LexState (warnings))
+import Distribution.Simple.Utils (xargs)
 
 -- Task 1
 type Pos = (Int, Int)
@@ -89,9 +91,7 @@ valid :: [Guest] -> [Conflict] -> Bool
 valid xs conflicts =
   all ok (zip xs (tail xs ++ [head xs]))
   where
-    ok (a, b) =
-      (a, b) `notElem` conflicts
-        && (b, a) `notElem` conflicts
+    ok (a, b) = (a, b) `notElem` conflicts && (b, a) `notElem` conflicts
 
 seatings :: [Guest] -> [Conflict] -> [[Guest]]
 seatings [] _ = [[]]
@@ -101,6 +101,44 @@ seatings guests conflict = do
   return perm
 
 -- Task 4
+data Result a = Failure String | Success a [String] deriving (Show)
+
+-- (a)
+instance Functor Result where
+  fmap func (Failure x) = Failure x
+  fmap func (Success a warnings) = Success (func a) warnings
+
+instance Applicative Result where
+  pure x = Success x []
+  (Failure x) <*> _ = Failure x
+  _ <*> (Failure x) = Failure x
+  (Success f warnings_a) <*> (Success b warnings_b) = Success (f b) (warnings_a <> warnings_b)
+
+instance Monad Result where
+  Failure x >>= _ = Failure x
+  Success a warnings >>= f = f a
+
+-- (b)
+warn :: String -> Result ()
+warn message = Success () [message]
+
+failure :: String -> Result a
+failure message = Failure message
+
+-- (c)
+validateAge :: Int -> Result Int
+validateAge n
+  | n > 150 = do
+      warn "Age is above 150"
+      return n
+  | n < 0 = do
+      failure "Age is negative"
+      return n
+  | otherwise = do
+      return n
+
+validateAges :: [Int] -> Result [Int]
+validateAges age_list = mapM validateAge age_list
 
 -- Task 5
 -- Task 6
@@ -137,3 +175,6 @@ main = do
   print $ seatings ["a", "b", "c"] [("a", "b")]
   print $ seatings ["a", "b", "c", "d"] [("a", "b")]
   print $ seatings ["a", "b", "c", "d"] [("a", "b"), ("d", "c")]
+
+  putStrLn "validate ages"
+  print $ validateAges [1, 2, 3, 4, 150, 160, 170, 3, 151]
