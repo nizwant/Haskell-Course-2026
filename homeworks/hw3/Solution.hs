@@ -18,6 +18,14 @@ followPath maze pos (d : ds) = do
   new_pos <- move maze pos d
   followPath maze new_pos ds
 
+safePath :: Maze -> Pos -> [Dir] -> Maybe [Pos]
+safePath maze pos [] = Just [pos]
+safePath maze pos (d : ds) = do
+  new_pos <- move maze pos d
+  path <- safePath maze new_pos ds
+  return (pos : path)
+
+-- Example maze
 -- +---+---+---+---+
 
 -- |           |   |
@@ -60,3 +68,9 @@ main = do
   print $ followPath maze (0, 0) [S, S, E]
   print $ followPath maze (0, 0) [S, E]
   print $ followPath maze (0, 0) [S, E, E]
+
+  putStrLn "safe path"
+  print $ safePath maze (0, 0) [S, S, E]
+  print $ safePath maze (0, 0) [S, E]
+  print $ safePath maze (0, 0) [S, E, E]
+  print $ safePath maze (0, 0) [S, S, E, N, E, N, W, W]
