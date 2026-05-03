@@ -21,62 +21,45 @@ instance Monad (Reader r) where
            in rb r
       )
 
--- Retrieves the entire environment.
 ask :: Reader r r
-ask = Reader (\r -> r)
+ask = Reader id
 
--- Retrieves a value derived from the environment by applying a projection,
--- e.g. `asks interestRate :: Reader BankConfig Double`.
 asks :: (r -> a) -> Reader r a
 asks f = Reader f
 
--- Runs a subcomputation in a locally modified environment. The modification
--- is only visible inside the passed Reader — once it returns, the outer
--- environment is restored (conceptually; there is no mutable state, the
--- modified environment simply goes out of scope).
 local :: (r -> r) -> Reader r a -> Reader r a
 local modify (Reader ra) =
   Reader (\r -> ra (modify r))
 
 data BankConfig = BankConfig
-  { interestRate :: Double, -- annual interest rate (e.g. 0.05 for 5%)
-    transactionFee :: Int, -- flat fee charged per transaction
-    minimumBalance :: Int -- minimum required balance on an account
+  { interestRate :: Double,
+    transactionFee :: Int,
+    minimumBalance :: Int
   }
   deriving (Show)
 
 data Account = Account
-  { accountId :: String, -- account identifier
-    balance :: Int -- current balance
+  { accountId :: String,
+    balance :: Int
   }
   deriving (Show)
 
--- Computes the interest accrued on the account, based on the configured rate.
--- The result should be an Int — round or truncate as you see fit, but be consistent.
 calculateInterest :: Account -> Reader BankConfig Int
 calculateInterest acc = do
   rate <- asks interestRate
   let bal = balance acc
   return (floor (fromIntegral bal * rate))
 
--- Deducts the transaction fee from the account and returns the updated account.
--- The accountId should remain unchanged.
 applyTransactionFee :: Account -> Reader BankConfig Account
 applyTransactionFee acc = do
   fee <- asks transactionFee
   return acc {balance = balance acc - fee}
 
--- Checks whether the account balance meets the configured minimum.
 checkMinimumBalance :: Account -> Reader BankConfig Bool
 checkMinimumBalance acc = do
   minBal <- asks minimumBalance
   return (balance acc >= minBal)
 
--- Runs the three operations above on a single account and combines their results.
--- The returned tuple contains:
---   * the account after the transaction fee has been applied,
---   * the interest computed from the ORIGINAL account,
---   * whether the ORIGINAL account meets the minimum balance requirement.
 processAccount :: Account -> Reader BankConfig (Account, Int, Bool)
 processAccount acc = do
   acc' <- applyTransactionFee acc
