@@ -1,5 +1,6 @@
 newtype Reader r a = Reader {runReader :: r -> a}
 
+-- Task 1
 instance Functor (Reader r) where
   -- fmap :: (a -> b) -> Reader r a -> Reader r b
   fmap f (Reader r) = Reader (fmap f r)
@@ -21,6 +22,7 @@ instance Monad (Reader r) where
            in rb r
       )
 
+-- Task 2
 ask :: Reader r r
 ask = Reader id
 
@@ -31,6 +33,7 @@ local :: (r -> r) -> Reader r a -> Reader r a
 local modify (Reader ra) =
   Reader (\r -> ra (modify r))
 
+-- Task 3
 data BankConfig = BankConfig
   { interestRate :: Double,
     transactionFee :: Int,
