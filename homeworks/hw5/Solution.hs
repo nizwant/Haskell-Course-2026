@@ -1,5 +1,7 @@
 import Control.Monad.State
 import Data.Map
+import Data.Map qualified as Map
+import Data.Maybe (fromMaybe)
 
 data Instr = PUSH Int | POP | DUP | SWAP | ADD | MUL | NEG deriving (Show)
 
@@ -53,12 +55,33 @@ data Expr
   | Neg Expr
   | Assign String Expr -- bind the value of the expression to the name, return that value
   | Seq Expr Expr -- evaluate the left, then the right; return the value of the right
+  deriving (Show)
 
 eval :: Expr -> State (Map String Int) Int
-eval = undefined
+eval (Num n) = return n
+eval (Var name) = do
+  gets (fromMaybe 0 . Map.lookup name)
+eval (Add e1 e2) = do
+  v1 <- eval e1
+  v2 <- eval e2
+  return (v1 + v2)
+eval (Mul e1 e2) = do
+  v1 <- eval e1
+  v2 <- eval e2
+  return (v1 * v2)
+eval (Neg e) = do
+  v <- eval e
+  return (-v)
+eval (Assign name expr) = do
+  value <- eval expr
+  modify (Map.insert name value)
+  return value
+eval (Seq e1 e2) = do
+  _ <- eval e1
+  eval e2
 
 runEval :: Expr -> Int
-runEval = undefined
+runEval expr = evalState (eval expr) Map.empty
 
 -- Task 3
 
