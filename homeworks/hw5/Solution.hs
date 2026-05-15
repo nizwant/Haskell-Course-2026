@@ -5,13 +5,43 @@ data Instr = PUSH Int | POP | DUP | SWAP | ADD | MUL | NEG deriving (Show)
 
 -- Task 1
 execInstr :: Instr -> State [Int] ()
-execInstr = undefined
+execInstr (PUSH x) = modify (x :)
+execInstr POP = do
+  st <- get
+  case st of
+    (_ : xs) -> put xs
+    [] -> return ()
+execInstr DUP = do
+  st <- get
+  case st of
+    (x : xs) -> put (x : x : xs)
+    [] -> return ()
+execInstr SWAP = do
+  st <- get
+  case st of
+    (x : y : xs) -> put (y : x : xs)
+    _ -> return ()
+execInstr ADD = do
+  st <- get
+  case st of
+    (x : y : xs) -> put ((x + y) : xs)
+    _ -> return ()
+execInstr MUL = do
+  st <- get
+  case st of
+    (x : y : xs) -> put ((x * y) : xs)
+    _ -> return ()
+execInstr NEG = do
+  st <- get
+  case st of
+    (x : xs) -> put ((-x) : xs)
+    [] -> return ()
 
 execProg :: [Instr] -> State [Int] ()
-execProg = undefined
+execProg = mapM_ execInstr
 
 runProg :: [Instr] -> [Int]
-runProg = undefined
+runProg prog = execState (execProg prog) []
 
 -- Task 2
 
