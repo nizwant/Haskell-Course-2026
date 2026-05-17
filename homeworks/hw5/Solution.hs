@@ -2,6 +2,7 @@ import Control.Monad.State
 import Data.Map
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
+import Text.Read (readMaybe)
 
 data Instr = PUSH Int | POP | DUP | SWAP | ADD | MUL | NEG deriving (Show)
 
@@ -120,19 +121,72 @@ editDistance xs ys =
     (editDistM xs ys (length xs) (length ys))
     Map.empty
 
--- Task 4
+-- Task 4 - 6
 
 data GameState = GameState
-  { position :: Int,
-    energy :: Int,
-    score :: Int
+  { playerPos :: Int,
+    playerEnergy :: Int,
+    playerScore :: Int
   }
   deriving (Show)
 
 type AdventureGame a = StateT GameState IO a
 
--- Task 5
--- Task 6
+getDiceRoll :: IO Int
+getDiceRoll = do
+  putStrLn "Enter dice roll (1-6):"
+  input <- getLine
+
+  case readMaybe input of
+    Just n | n >= 1 && n <= 6 -> return n
+    _ -> do
+      putStrLn "Invalid dice roll. Try again."
+      getDiceRoll
+
+displayGameState :: GameState -> IO ()
+displayGameState gs = do
+  putStrLn "---------------------------"
+  putStrLn ("Position: " ++ show (playerPos gs))
+  putStrLn ("Energy : " ++ show (playerEnergy gs))
+  putStrLn ("Score  : " ++ show (playerScore gs))
+  putStrLn "---------------------------"
+
+getPlayerChoice :: [String] -> IO String
+getPlayerChoice options = do
+  putStrLn "Choose an option:"
+
+  mapM_
+    (\(i, opt) -> putStrLn (show i ++ ". " ++ opt))
+    (zip [1 ..] options)
+
+  input <- getLine
+
+  case readMaybe input of
+    Just n
+      | n >= 1 && n <= length options ->
+          return (options !! (n - 1))
+    _ -> do
+      putStrLn "Invalid choice. Try again."
+      getPlayerChoice options
+
+movePlayer :: Int -> AdventureGame Int
+movePlayer diceRoll = do
+  gs <- get
+
+  let newPos = playerPos gs + diceRoll
+      newEnergy = playerEnergy gs - 1
+
+  put
+    gs
+      { playerPos = newPos,
+        playerEnergy = newEnergy
+      }
+
+  return diceRoll
+
+makeDecision :: [String] -> AdventureGame String
+makeDecision options = do
+  liftIO (getPlayerChoice options)
 
 main = do
   putStrLn "=== Homework 05 ==="
