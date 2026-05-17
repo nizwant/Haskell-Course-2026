@@ -123,10 +123,20 @@ editDistance xs ys =
 
 -- Task 4 - 6
 
+data Location
+  = Normal
+  | Obstacle Int
+  | Treasure Int
+  | Trap Int
+  | DecisionPoint [String]
+  | Goal
+  deriving (Show)
+
 data GameState = GameState
   { playerPos :: Int,
     playerEnergy :: Int,
-    playerScore :: Int
+    playerScore :: Int,
+    gameBoard :: Map Int Location
   }
   deriving (Show)
 
@@ -187,6 +197,87 @@ movePlayer diceRoll = do
 makeDecision :: [String] -> AdventureGame String
 makeDecision options = do
   liftIO (getPlayerChoice options)
+
+handleLocation :: AdventureGame Bool
+handleLocation = do
+  gs <- get
+
+  let location = Map.findWithDefault Normal (playerPos gs) (gameBoard gs)
+
+  case location of
+    Normal -> do
+      liftIO $ putStrLn "Nothing special here."
+      return False
+    Obstacle penalty -> do
+      liftIO $ putStrLn "You hit an obstacle!"
+
+      modify
+        ( \s ->
+            s
+              { playerEnergy = playerEnergy s - penalty
+              }
+        )
+
+      return False
+    Treasure points -> do
+      liftIO $ putStrLn "You found treasure!"
+
+      modify
+        ( \s ->
+            s
+              { playerScore = playerScore s + points
+              }
+        )
+
+      return False
+    Trap points -> do
+      liftIO $ putStrLn "You fell into a trap!"
+
+      modify
+        ( \s ->
+            s
+              { playerScore = max 0 (playerScore s - points)
+              }
+        )
+
+      return False
+    DecisionPoint options -> do
+      choice <- makeDecision options
+      liftIO $ putStrLn ("You chose: " ++ choice)
+      return False
+    Goal -> do
+      liftIO $ putStrLn "You reached the main treasure!"
+      return True
+
+playTurn :: AdventureGame Bool
+playTurn = do
+  gs <- get
+
+  if playerEnergy gs <= 0
+    then do
+      liftIO $ putStrLn "You ran out of energy!"
+      return True
+    else do
+      dice <- liftIO getDiceRoll
+
+      _ <- movePlayer dice
+
+      handleLocation
+
+playGame :: AdventureGame ()
+playGame = do
+  gs <- get
+  liftIO (displayGameState gs)
+
+  finished <- playTurn
+
+  if finished
+    then do
+      finalState <- get
+      liftIO $ do
+        putStrLn "Game over!"
+        displayGameState finalState
+    else playGame
 
 main = do
   putStrLn "=== Homework 05 ==="
