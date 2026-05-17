@@ -86,12 +86,51 @@ runEval expr = evalState (eval expr) Map.empty
 -- Task 3
 
 editDistM :: String -> String -> Int -> Int -> State (Map (Int, Int) Int) Int
-editDistM = undefined
+editDistM xs ys i j = do
+  cache <- get
+
+  case Map.lookup (i, j) cache of
+    Just value -> return value
+    Nothing -> do
+      result <-
+        if i == 0
+          then
+            return j
+          else
+            if j == 0
+              then
+                return i
+              else
+                if xs !! (i - 1) == ys !! (j - 1)
+                  then
+                    editDistM xs ys (i - 1) (j - 1)
+                  else do
+                    deletion <- editDistM xs ys (i - 1) j
+                    insertion <- editDistM xs ys i (j - 1)
+                    substitution <- editDistM xs ys (i - 1) (j - 1)
+
+                    return (1 + minimum [deletion, insertion, substitution])
+
+      modify (Map.insert (i, j) result)
+      return result
 
 editDistance :: String -> String -> Int
-editDistance = undefined
+editDistance xs ys =
+  evalState
+    (editDistM xs ys (length xs) (length ys))
+    Map.empty
 
 -- Task 4
+
+data GameState = GameState
+  { position :: Int,
+    energy :: Int,
+    score :: Int
+  }
+  deriving (Show)
+
+type AdventureGame a = StateT GameState IO a
+
 -- Task 5
 -- Task 6
 
