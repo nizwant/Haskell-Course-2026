@@ -1,2 +1,2 @@
 # Haskell-Course-2026
-Repo for Haskell course related deliverables
+Repo for Haskell course related deliverables - homeworks and project
