@@ -5,6 +5,15 @@ static Client *clients_hashmap = NULL;
 static int client_fd = -1;
 static struct sockaddr_in server_addr;
 
+// Our own username, remembered at connect time so that every outgoing packet
+// can stamp its header. Without this the server cannot tell who is talking.
+static char my_username[32] = {0};
+
+// Details of the most recently received packet, for retrieval from Haskell.
+// Overwritten by each peer_receive() call.
+static char last_sender[32] = {0};
+static char last_message[MAX_MESS_SIZE] = {0};
+
 int peer_connect(const char *username, const char *password)
 {
     client_fd = setup_socket(0);
@@ -28,6 +37,8 @@ int peer_connect(const char *username, const char *password)
         client_fd = -1;
         return -1;
     }
+
+    snprintf(my_username, sizeof(my_username), "%s", username);
 
     // add self to hashmap
     struct sockaddr_in self_addr = {
@@ -65,6 +76,7 @@ int peer_get_user(const char *username, const char *password)
 
     PacketHeader header = {0};
     header.type = GET_PEER;
+    strncpy(header.sender_username, my_username, sizeof(header.sender_username) - 1);
 
     GetPeerPacket p = {0};
     p.header = header;
@@ -101,6 +113,7 @@ int peer_send_message(const char *recipient, const char *message)
 
     PacketHeader header = {0};
     header.type = MESSAGE;
+    strncpy(header.sender_username, my_username, sizeof(header.sender_username) - 1);
 
     MessagePacket p = {0};
     p.header = header;
@@ -137,6 +150,7 @@ int peer_send_ping(const char *recipient)
 
     PacketHeader header = {0};
     header.type = PING;
+    strncpy(header.sender_username, my_username, sizeof(header.sender_username) - 1);
 
     if (sendto(client_fd, &header, sizeof(header), 0,
                (struct sockaddr *)&dest, sizeof(dest)) < 0)
@@ -179,6 +193,10 @@ int peer_receive(int timeout_ms)
 
     PacketHeader *header = (PacketHeader *)buf;
 
+    // Record who this packet is about; overwritten on every call.
+    snprintf(last_sender, sizeof(last_sender), "%s", header->sender_username);
+    last_message[0] = '\0';
+
     switch (header->type)
     {
     case INIT_RESPONSE:
@@ -192,6 +210,9 @@ int peer_receive(int timeout_ms)
     case START_PINGING_PEER:
     {
         StartPingingPeerPacket *spp = (StartPingingPeerPacket *)buf;
+        // For this packet the interesting username is the discovered peer's,
+        // not the server's.
+        snprintf(last_sender, sizeof(last_sender), "%s", spp->username);
         DEBUG_PRINT("START_PINGING_PEER Packet received\n");
         DEBUG_PRINT("Username: %s\n", spp->username);
         DEBUG_PRINT("Port: %d\n", spp->port);
@@ -216,7 +237,14 @@ int peer_receive(int timeout_ms)
         strncpy(received_message, packet->message, sizeof(received_message) - 1);
         received_message[sizeof(received_message) - 1] = '\0';
 
+        snprintf(last_message, sizeof(last_message), "%s", received_message);
+
+#ifdef DEBUG
+        // Only in debug builds: writing to stdout would corrupt the TUI.
         print_message(&src, received_message);
+#else
+        (void)src;
+#endif
         break;
     }
 
@@ -244,9 +272,23 @@ void peer_disconnect(void)
         free(current);
     }
     clients_hashmap = NULL;
+
+    my_username[0] = '\0';
+    last_sender[0] = '\0';
+    last_message[0] = '\0';
 }
 
 int peer_get_fd(void)
 {
     return client_fd;
+}
+
+const char *peer_last_sender(void)
+{
+    return last_sender;
+}
+
+const char *peer_last_message(void)
+{
+    return last_message;
 }

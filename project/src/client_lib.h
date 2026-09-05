@@ -27,4 +27,13 @@ void peer_disconnect(void);
 // Get the internal socket fd (for advanced use / select loops).
 int peer_get_fd(void);
 
+// Username associated with the last packet seen by peer_receive: the sender for
+// MESSAGE/PING, the discovered peer for START_PINGING_PEER. Points at a static
+// buffer that the next peer_receive call overwrites - copy it before reusing.
+const char *peer_last_sender(void);
+
+// Body of the last MESSAGE packet seen by peer_receive, or "" if the last
+// packet was not a MESSAGE. Same static-buffer lifetime as peer_last_sender.
+const char *peer_last_message(void);
+
 #endif
