@@ -23,6 +23,7 @@ import Control.Concurrent.STM
 import Control.Exception (bracket, bracket_)
 import Control.Monad (forever, unless, void)
 import Data.Text (Text)
+import Data.Text qualified as T
 import Data.Time
 import GHC.IO.Handle (hDuplicate, hDuplicateTo)
 import Graphics.Vty qualified as V
@@ -40,6 +41,17 @@ data Options = Options
   }
   deriving (Show)
 
+-- | How long to wait for the server to acknowledge us before announcing again.
+registrationRetry :: NominalDiffTime
+registrationRetry = 2
+
+-- | Whether the server has acknowledged us yet, and when we last announced.
+data Registration = Registration
+  { regAcknowledged :: Bool,
+    regLastAttempt :: UTCTime,
+    regAttempts :: Int
+  }
+
 -- | Drain the command queue, then poll the socket once. Nothing here blocks
 -- for long: 'Net.receive' returns after 100ms at the latest, so queued
 -- commands are never delayed by more than that.
@@ -47,13 +59,47 @@ data Options = Options
 -- 'Net.receive' is a @safe@ foreign call, so while it waits inside @select()@
 -- the runtime keeps scheduling the UI thread -- which is why the executable
 -- must be built with @-threaded@.
+--
+-- The loop also owns registration. INIT is a lone UDP datagram with no
+-- retransmission behind it, so the announcement 'runApp' sends at start-up can
+-- simply vanish -- or be sent before the server is up at all -- leaving the
+-- client running normally but invisible to everyone. So it keeps announcing
+-- until an INIT_RESPONSE comes back, and then stops.
 networkThread :: TQueue Command -> BChan AppEvent -> IO ()
-networkThread commands out = forever $ do
-  queued <- atomically (flushTQueue commands)
-  mapM_ runCommand queued
-  event <- Net.receive 100
-  mapM_ (writeBChan out . NetEvent) event
+networkThread commands out = do
+  -- runApp has just announced us, so the first retry is a full interval away.
+  start <- getCurrentTime
+  loop Registration {regAcknowledged = False, regLastAttempt = start, regAttempts = 1}
   where
+    loop registration = do
+      queued <- atomically (flushTQueue commands)
+      mapM_ runCommand queued
+
+      event <- Net.receive 100
+      mapM_ (writeBChan out . NetEvent) event
+
+      next <-
+        if regAcknowledged registration || event == Just Net.EvInitResponse
+          then pure registration {regAcknowledged = True}
+          else retryRegistration registration
+      loop next
+
+    retryRegistration registration = do
+      now <- getCurrentTime
+      if diffUTCTime now (regLastAttempt registration) < registrationRetry
+        then pure registration
+        else do
+          let attempt = regAttempts registration + 1
+          announced <- Net.register
+          writeBChan out . NetNote $
+            if announced
+              then "no answer from the server yet, announcing again (attempt " <> tshow attempt <> ")"
+              else "not connected - cannot reach the server"
+          pure registration {regLastAttempt = now, regAttempts = attempt}
+
+    tshow :: Int -> Text
+    tshow = T.pack . show
+
     runCommand (CmdDiscover user password) = void (Net.getUser user password)
     runCommand (CmdPing who) = void (Net.sendPing who)
     runCommand (CmdSend to body) = do

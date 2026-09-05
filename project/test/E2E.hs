@@ -79,6 +79,21 @@ registerRetrying user password = go (8 :: Int)
             Just () -> pure True
             Nothing -> go (n - 1)
 
+-- | Re-announce on the existing socket until the server acknowledges, the way
+-- 'PeerChat.App' does on a timer. Unlike 'registerRetrying' this never
+-- reconnects, so the port stays put.
+announceUntilAcknowledged :: Int -> IO Bool
+announceUntilAcknowledged 0 = pure False
+announceUntilAcknowledged n = do
+  announced <- Net.register
+  if not announced
+    then pure False
+    else do
+      acked <- awaitEvent 10 initResponse
+      case acked of
+        Just () -> pure True
+        Nothing -> announceUntilAcknowledged (n - 1)
+
 -- | Ask the server for a peer until it answers. Retried because the peer's own
 -- registration may not have reached the server yet.
 discoverPeer :: Text -> Text -> IO Bool
@@ -351,6 +366,42 @@ reconnectingKeepsPeersReachable = withSystemTempDirectory "peerchat-reconnect" $
       (Just "re: second session")
       replySecond
 
+-- | A client that announces itself while the server is unreachable must still
+-- end up registered once the server appears.
+--
+-- This is the case that made the retry necessary: INIT is one UDP datagram
+-- with no retransmission, so a client started first -- or one whose packet is
+-- simply dropped -- would otherwise run happily forever while being invisible
+-- to everyone looking it up.
+registrationSurvivesALostAnnouncement :: IO ()
+registrationSurvivesALostAnnouncement = withSystemTempDirectory "peerchat-register" $ \dir -> do
+  serverExe <- buildServer dir
+  setEnv "PEERCHAT_SERVER_IP" "127.0.0.1"
+  Net.disconnect
+
+  -- Announce into the void: nothing is listening on 2137 yet.
+  opened <- Net.connect "alice" "pw-alice"
+  assertBool "opening a socket should not require a reachable server" opened
+  portBefore <- Net.getPort
+
+  lost <- awaitEvent 10 initResponse
+  assertEqual "nothing should answer while the server is down" Nothing lost
+
+  withServer serverExe $ do
+    -- Exactly what the client's network thread does on a timer: keep
+    -- announcing until acknowledged. A single retry is not enough to assert
+    -- on, since that datagram can be dropped in turn -- which is the whole
+    -- reason the retry loop exists.
+    acked <- announceUntilAcknowledged 10
+    assertBool "the retried announcements all went unanswered" acked
+
+    -- And it must have happened on the original socket, so the address the
+    -- server now hands out for us is one we are actually listening on.
+    portAfter <- Net.getPort
+    assertEqual "re-announcing must not change our port" portBefore portAfter
+
+  Net.disconnect
+
 -- | Letting a returning user back in must not let a stranger take the name:
 -- reconnecting is allowed only with the password the username was claimed
 -- with.
@@ -388,6 +439,7 @@ e2eTests =
       [ testCase "two peers meet, exchange three messages each way, and the history survives a restart" fullConversation,
         testCase "a restarted client stays reachable at its new address" reconnectingKeepsPeersReachable,
         testCase "an existing username cannot be claimed with the wrong password" usernamesArePasswordProtected,
+        testCase "a client that starts before the server still gets registered" registrationSurvivesALostAnnouncement,
         testCase "a message to an unreachable peer is refused but still stored" offlinePeer,
         testCase "the C library exposes exactly one connection per process" singleConnectionPerProcess
       ]

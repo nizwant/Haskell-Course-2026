@@ -7,6 +7,7 @@
 -- that need no network.
 module Unit (storeUnitTests, ffiUnitTests, uiUnitTests) where
 
+import Data.List (nub)
 import Data.Text (Text)
 import Data.Time
 import PeerChat.FFI qualified as Net
@@ -149,7 +150,7 @@ uiUnitTests =
 
 -- | The C library reports "not connected" through the same @-1@ that it uses
 -- for errors, so these check the FFI layer translates that correctly. None of
--- them open a socket.
+-- them needs a server to be running.
 --
 -- Sequential, because each one resets the C library's single global
 -- connection: run concurrently they would trample each other, and any
@@ -157,7 +158,7 @@ uiUnitTests =
 ffiUnitTests :: TestTree
 ffiUnitTests =
   dependentTestGroup
-    "PeerChat.FFI (disconnected)"
+    "PeerChat.FFI (no server)"
     AllFinish
     [ testCase "PacketType matches the C enum ordering" $
         map fromEnum [minBound .. maxBound :: Net.PacketType]
@@ -179,5 +180,40 @@ ffiUnitTests =
       testCase "pinging an undiscovered peer fails" $ do
         Net.disconnect
         pinged <- Net.sendPing "bob"
-        pinged @?= False
+        pinged @?= False,
+      testCase "re-announcing without a connection fails" $ do
+        Net.disconnect
+        announced <- Net.register
+        announced @?= False,
+      testCase "re-announcing keeps the port the peers already know" $ do
+        -- The point of peer_register over simply reconnecting: our port must
+        -- not change, or every peer holding our address is talking to nothing.
+        -- Compare ports, not descriptors -- close/reopen usually hands back
+        -- the same descriptor number on a fresh port, so getFd would agree
+        -- even when the port had moved. No server is needed here; the INIT
+        -- just goes nowhere.
+        Net.disconnect
+        _ <- Net.connect "alice" "pw-alice"
+        before <- Net.getPort
+        announced <- Net.register
+        afterwards <- Net.getPort
+        Net.disconnect
+        announced @?= True
+        assertBool "expected a bound port" (before > 0)
+        assertEqual "peer_register must not move us to a new port" before afterwards,
+      testCase "getPort reports -1 before connecting" $ do
+        Net.disconnect
+        port <- Net.getPort
+        port @?= (-1),
+      testCase "reconnecting closes the previous socket instead of leaking it" $ do
+        Net.disconnect
+        fds <- traverse (const (Net.connect "alice" "pw-alice" >> Net.getFd)) [1 .. 20 :: Int]
+        Net.disconnect
+        -- POSIX hands out the lowest free descriptor, so a closed socket is
+        -- reused; without the close each connect burned a new one. Allow a
+        -- little slack for descriptors the runtime opens alongside.
+        let distinct = length (nub fds)
+        assertBool
+          ("expected the descriptor to be reused, saw " ++ show distinct ++ " distinct: " ++ show fds)
+          (distinct <= 2)
     ]
