@@ -58,12 +58,18 @@ library
 
     exposed-modules:  PeerChat.FFI
                       PeerChat.Store
+                      PeerChat.UI
+                      PeerChat.App
 
     build-depends:    base ^>=4.18.3.0
+                    , brick
                     , bytestring
                     , sqlite-simple
+                    , stm
                     , text
                     , time
+                    , vty
+                    , vty-crossplatform
 
     -- Haskell sources live alongside the C ones in src/.
     hs-source-dirs:   src
