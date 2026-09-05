@@ -17,6 +17,7 @@ module PeerChat.UI
     AppEvent (..),
     Command (..),
     contactIsOnline,
+    contactAt,
     selectedContact,
 
     -- * The application
@@ -92,10 +93,15 @@ contactIsOnline now c = case cLastSeen c of
   Nothing -> False
   Just seen -> diffUTCTime now seen < 30
 
-selectedContact :: AppState -> Maybe Contact
-selectedContact st
-  | asSelected st < length (asContacts st) = Just (asContacts st !! asSelected st)
+-- | The contact at an index, or 'Nothing' if the index is out of range. Total,
+-- so a stale selection can never crash the interface.
+contactAt :: Int -> [Contact] -> Maybe Contact
+contactAt i contacts
+  | i >= 0 && i < length contacts = Just (contacts !! i)
   | otherwise = Nothing
+
+selectedContact :: AppState -> Maybe Contact
+selectedContact st = contactAt (asSelected st) (asContacts st)
 
 -- Rendering -------------------------------------------------------------------
 

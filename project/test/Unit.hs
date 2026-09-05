@@ -5,12 +5,13 @@
 -- The store tests all run against a private in-memory database, so they are
 -- fast and independent of each other. The FFI tests exercise only the states
 -- that need no network.
-module Unit (storeUnitTests, ffiUnitTests) where
+module Unit (storeUnitTests, ffiUnitTests, uiUnitTests) where
 
 import Data.Text (Text)
 import Data.Time
 import PeerChat.FFI qualified as Net
 import PeerChat.Store
+import PeerChat.UI (Contact (..), contactAt, contactIsOnline)
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -112,13 +113,52 @@ storeUnitTests =
           length migrated @?= 1
     ]
 
+-- | The interface's pure logic: which contact is selected, and whether one
+-- counts as online. Both are driven by state that changes without any input,
+-- so they are worth pinning down away from a running terminal.
+uiUnitTests :: TestTree
+uiUnitTests =
+  testGroup
+    "PeerChat.UI"
+    [ testCase "a contact never heard from is offline" $
+        contactIsOnline (at 0) (Contact "bob" Nothing True) @?= False,
+      testCase "a contact heard from just now is online" $
+        contactIsOnline (at 0) (Contact "bob" (Just (at 0)) True) @?= True,
+      testCase "a contact is still online after two missed pings" $
+        -- Peers ping every 10s; 29s in, the third ping has not yet timed out.
+        contactIsOnline (at 29) (Contact "bob" (Just (at 0)) True) @?= True,
+      testCase "a contact goes offline after 30 seconds of silence" $
+        contactIsOnline (at 31) (Contact "bob" (Just (at 0)) True) @?= False,
+      testCase "being reachable is not the same as being online" $
+        -- We may hold an address for a peer that has since died.
+        contactIsOnline (at 100) (Contact "bob" (Just (at 0)) True) @?= False,
+      testCase "contactAt returns the indexed contact" $
+        fmap cName (contactAt 1 roster) @?= Just "carol",
+      testCase "contactAt past the end is Nothing, not a crash" $
+        fmap cName (contactAt 9 roster) @?= Nothing,
+      testCase "contactAt on an empty roster is Nothing" $
+        fmap cName (contactAt 0 []) @?= Nothing,
+      testCase "contactAt rejects a negative index" $
+        fmap cName (contactAt (-1) roster) @?= Nothing
+    ]
+  where
+    roster =
+      [ Contact "bob" Nothing False,
+        Contact "carol" Nothing False
+      ]
+
 -- | The C library reports "not connected" through the same @-1@ that it uses
 -- for errors, so these check the FFI layer translates that correctly. None of
 -- them open a socket.
+--
+-- Sequential, because each one resets the C library's single global
+-- connection: run concurrently they would trample each other, and any
+-- end-to-end conversation happening at the same time.
 ffiUnitTests :: TestTree
 ffiUnitTests =
-  testGroup
+  dependentTestGroup
     "PeerChat.FFI (disconnected)"
+    AllFinish
     [ testCase "PacketType matches the C enum ordering" $
         map fromEnum [minBound .. maxBound :: Net.PacketType]
           @?= [0 .. 5],

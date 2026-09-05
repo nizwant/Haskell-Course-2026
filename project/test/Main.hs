@@ -9,7 +9,6 @@ import E2E qualified
 import Properties qualified
 import System.Environment (lookupEnv)
 import Test.Tasty
-import Test.Tasty.Runners (NumThreads (..))
 import Unit qualified
 
 main :: IO ()
@@ -24,13 +23,17 @@ tests =
   testGroup
     "PeerChat"
     [ Unit.storeUnitTests,
+      Unit.uiUnitTests,
       Properties.propertyTests,
       -- Everything below drives the single global connection inside the C
-      -- library, so these must not run concurrently with each other.
-      localOption (NumThreads 1) $
-        testGroup
-          "networking"
-          [ Unit.ffiUnitTests,
-            E2E.e2eTests
-          ]
+      -- library, so no two of these may run at once. That needs
+      -- dependentTestGroup, which imposes real ordering between the groups --
+      -- `localOption (NumThreads 1)` only sizes a thread pool and would still
+      -- let a disconnect test close the socket mid-conversation.
+      dependentTestGroup
+        "networking"
+        AllFinish
+        [ Unit.ffiUnitTests,
+          E2E.e2eTests
+        ]
     ]
