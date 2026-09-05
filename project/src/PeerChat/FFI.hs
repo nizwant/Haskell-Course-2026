@@ -17,8 +17,10 @@
 module PeerChat.FFI
   ( -- * Connection
     connect,
+    register,
     disconnect,
     getFd,
+    getPort,
 
     -- * Sending
     getUser,
@@ -77,6 +79,9 @@ data Event
 foreign import ccall safe "client_lib.h peer_connect"
   c_peer_connect :: CString -> CString -> IO CInt
 
+foreign import ccall safe "client_lib.h peer_register"
+  c_peer_register :: IO CInt
+
 foreign import ccall safe "client_lib.h peer_get_user"
   c_peer_get_user :: CString -> CString -> IO CInt
 
@@ -94,6 +99,9 @@ foreign import ccall safe "client_lib.h peer_disconnect"
 
 foreign import ccall unsafe "client_lib.h peer_get_fd"
   c_peer_get_fd :: IO CInt
+
+foreign import ccall unsafe "client_lib.h peer_get_port"
+  c_peer_get_port :: IO CInt
 
 foreign import ccall unsafe "client_lib.h peer_last_sender"
   c_peer_last_sender :: IO CString
@@ -130,6 +138,17 @@ connect user password =
   withText user $ \u ->
     withText password $ \p ->
       succeeded <$> c_peer_connect u p
+
+-- | Announce ourselves to the server again on the socket 'connect' opened,
+-- reusing the credentials it was given. Returns 'False' if not connected.
+--
+-- INIT is a lone UDP datagram that nothing retransmits, so a client whose
+-- first announcement is dropped stays invisible: it never hears back and
+-- nobody can look it up. Callers should repeat this until an 'EvInitResponse'
+-- arrives. Unlike calling 'connect' again, this keeps the current socket, so
+-- the port peers have already been told about remains correct.
+register :: IO Bool
+register = succeeded <$> c_peer_register
 
 -- | Ask the server for a peer's address. Like 'connect' this is fire-and-
 -- forget: success here means the request was sent, and the answer arrives
@@ -190,3 +209,11 @@ disconnect = c_peer_disconnect
 -- | The underlying UDP socket descriptor, or @-1@ when not connected.
 getFd :: IO Int
 getFd = fromIntegral <$> c_peer_get_fd
+
+-- | The local port we are bound to, or @-1@ when not connected.
+--
+-- This is our identity as far as other peers are concerned -- it is what the
+-- server hands out for us. It is not interchangeable with 'getFd': reopening a
+-- socket usually reuses the descriptor number while taking a different port.
+getPort :: IO Int
+getPort = fromIntegral <$> c_peer_get_port

@@ -5,9 +5,12 @@ static Client *clients_hashmap = NULL;
 static int client_fd = -1;
 static struct sockaddr_in server_addr;
 
-// Our own username, remembered at connect time so that every outgoing packet
-// can stamp its header. Without this the server cannot tell who is talking.
+// Our own credentials, remembered at connect time. The username stamps every
+// outgoing packet's header (without it the server cannot tell who is talking);
+// the password lets peer_register() re-announce us without being handed them
+// again.
 static char my_username[32] = {0};
+static char my_password[32] = {0};
 
 // Details of the most recently received packet, for retrieval from Haskell.
 // Overwritten by each peer_receive() call.
@@ -16,6 +19,14 @@ static char last_message[MAX_MESS_SIZE] = {0};
 
 int peer_connect(const char *username, const char *password)
 {
+    // Reconnecting used to leak the previous socket, since client_fd was
+    // simply overwritten.
+    if (client_fd >= 0)
+    {
+        close(client_fd);
+        client_fd = -1;
+    }
+
     client_fd = setup_socket(0);
     if (client_fd < 0)
     {
@@ -39,6 +50,7 @@ int peer_connect(const char *username, const char *password)
     }
 
     snprintf(my_username, sizeof(my_username), "%s", username);
+    snprintf(my_password, sizeof(my_password), "%s", password);
 
     // add self to hashmap
     struct sockaddr_in self_addr = {
@@ -49,23 +61,29 @@ int peer_connect(const char *username, const char *password)
     // add server to hashmap
     add_user_to_hashmap(&clients_hashmap, SERVER_USERNAME, SERVER_USERNAME, server_addr);
 
-    // send INIT packet
+    return peer_register();
+}
+
+int peer_register(void)
+{
+    if (client_fd < 0)
+        return -1;
+
     PacketHeader header = {0};
     header.type = INIT;
-    strncpy(header.sender_username, username, sizeof(header.sender_username) - 1);
+    strncpy(header.sender_username, my_username, sizeof(header.sender_username) - 1);
 
     InitPacket init_packet = {0};
     init_packet.header = header;
-    strncpy(init_packet.password, password, sizeof(init_packet.password) - 1);
+    strncpy(init_packet.password, my_password, sizeof(init_packet.password) - 1);
 
     if (sendto(client_fd, &init_packet, sizeof(init_packet), 0,
                (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
-        perror("sendto");
         return -1;
     }
 
-    DEBUG_PRINT("INIT packet sent as '%s'\n", username);
+    DEBUG_PRINT("INIT packet sent as '%s'\n", my_username);
     return 0;
 }
 
@@ -276,6 +294,7 @@ void peer_disconnect(void)
     clients_hashmap = NULL;
 
     my_username[0] = '\0';
+    my_password[0] = '\0';
     last_sender[0] = '\0';
     last_message[0] = '\0';
 }
@@ -283,6 +302,22 @@ void peer_disconnect(void)
 int peer_get_fd(void)
 {
     return client_fd;
+}
+
+int peer_get_port(void)
+{
+    if (client_fd < 0)
+        return -1;
+
+    struct sockaddr_in local;
+    socklen_t len = sizeof(local);
+
+    if (getsockname(client_fd, (struct sockaddr *)&local, &len) < 0)
+    {
+        return -1;
+    }
+
+    return ntohs(local.sin_port);
 }
 
 const char *peer_last_sender(void)
