@@ -63,10 +63,23 @@ int main()
                 strncpy(password, init_packet->password, sizeof(password) - 1);
                 password[sizeof(password) - 1] = '\0';
 
-                if (add_user_to_hashmap(&clients_hashmap, username, password, src) < 0)
+                // A known username is usually the same person reconnecting on a
+                // fresh ephemeral port, not an impostor. Let them back in when
+                // the password matches, adopting the new address -- otherwise
+                // they stay unreachable until this server restarts. A wrong
+                // password is a takeover attempt and is refused.
+                Client *existing;
+                HASH_FIND_STR(clients_hashmap, username, existing);
+
+                if (existing != NULL && strcmp(existing->password, password) != 0)
                 {
-                    printf("user already exist\n");
+                    printf("username '%s' is taken, wrong password\n", username);
                     break;
+                }
+
+                if (upsert_user_in_hashmap(&clients_hashmap, username, password, src) == 0)
+                {
+                    printf("user '%s' reconnected from a new address\n", username);
                 }
 
                 PacketHeader init_r = {INIT_RESPONSE, SERVER_USERNAME};

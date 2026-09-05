@@ -96,6 +96,16 @@ typedef struct _client
 
 int setup_socket(int server_socket);
 int add_user_to_hashmap(Client **clients_hashmap, const char *username, const char *password, struct sockaddr_in src);
+
+// Add the user, or refresh the address and last-seen time of one already
+// known. The stored password is left untouched when refreshing, so callers
+// that care about authentication must check it themselves first.
+// Returns 1 if a new entry was created, 0 if an existing one was refreshed.
+//
+// Needed because clients get a fresh ephemeral port every time they start:
+// without this, a restarted peer keeps being sent to its dead address.
+int upsert_user_in_hashmap(Client **clients_hashmap, const char *username, const char *password, struct sockaddr_in src);
+
 void print_message(const struct sockaddr_in *src, const char *message);
 
 #endif

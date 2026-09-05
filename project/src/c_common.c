@@ -48,6 +48,22 @@ int add_user_to_hashmap(Client **clients_hashmap, const char *username, const ch
     return 1;
 }
 
+int upsert_user_in_hashmap(Client **clients_hashmap, const char *username, const char *password, struct sockaddr_in src)
+{
+    Client *s;
+
+    HASH_FIND_STR(*clients_hashmap, username, s);
+    if (s == NULL)
+    {
+        return add_user_to_hashmap(clients_hashmap, username, password, src);
+    }
+
+    s->ip_addr = src.sin_addr;
+    s->port = ntohs(src.sin_port);
+    s->last_time_seen = time(NULL);
+    return 0;
+}
+
 void print_message(const struct sockaddr_in *src, const char *message)
 {
     char ip[INET_ADDRSTRLEN];

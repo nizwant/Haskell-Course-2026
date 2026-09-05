@@ -222,7 +222,9 @@ int peer_receive(int timeout_ms)
         peer_addr.sin_port = htons(spp->port);
         peer_addr.sin_addr = spp->ip;
 
-        add_user_to_hashmap(&clients_hashmap, spp->username, "", peer_addr);
+        // Upsert, not add: if this peer has restarted since we last heard from
+        // them, their old address is dead and this packet carries the new one.
+        upsert_user_in_hashmap(&clients_hashmap, spp->username, "", peer_addr);
 
         char peer_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &spp->ip, peer_ip, sizeof(peer_ip));
