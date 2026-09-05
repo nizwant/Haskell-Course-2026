@@ -103,6 +103,36 @@ executable PeerChat
     -- Base language which the package is written in.
     default-language: GHC2021
 
+test-suite PeerChat-test
+    import:           warnings
+    type:             exitcode-stdio-1.0
+    main-is:          Main.hs
+    other-modules:    Unit
+                      Properties
+                      E2E
+    hs-source-dirs:   test
+
+    build-depends:    base ^>=4.18.3.0
+                    , PeerChat
+                    , QuickCheck
+                    , containers
+                    , directory
+                    , filepath
+                    , process
+                    , sqlite-simple
+                    , tasty
+                    , tasty-hunit
+                    , tasty-quickcheck
+                    , temporary
+                    , text
+                    , time
+
+    -- The end-to-end tests re-run this binary as a second chat client, which
+    -- needs the threaded runtime for the same reason the app does.
+    ghc-options:      -threaded
+
+    default-language: GHC2021
+
 -- The coordination server (src/server.c) has its own main and is not part of
 -- any Cabal target. Build it directly when you need a local instance:
 --     cc src/c_common.c src/server.c -o peerchat-server

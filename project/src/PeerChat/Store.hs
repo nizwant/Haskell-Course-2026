@@ -15,6 +15,7 @@
 -- and never spliced into SQL.
 module PeerChat.Store
   ( -- * Opening
+    Connection,
     withStore,
 
     -- * Messages
